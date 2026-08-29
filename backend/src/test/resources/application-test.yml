@@ -1,0 +1,22 @@
+server:
+  port: 0
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:packcheck_test_db;DB_CLOSE_DELAY=-1;MODE=MySQL
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    database-platform: org.hibernate.dialect.H2Dialect
+
+ai:
+  service:
+    url: http://localhost:8000
+
+file:
+  upload-dir: target/test-uploads

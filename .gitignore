@@ -1,0 +1,23 @@
+# Dependencies & Build Outputs
+node_modules/
+dist/
+target/
+__pycache__/
+*.pyc
+venv/
+.venv/
+.env
+*.log
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.swp
+*.DS_Store
+
+# Temporary files
+*.tmp
+uploads/
+*.jpg
+*.png
+
