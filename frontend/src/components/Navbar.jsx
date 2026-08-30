@@ -1,113 +1,180 @@
-import React from 'react';
-import { Shield, Scan, History, FileCheck, LayoutDashboard, LogOut, User as UserIcon } from 'lucide-react';
+import React, { useState } from 'react';
+import { 
+  ShieldCheck, 
+  LayoutDashboard, 
+  Scan, 
+  History, 
+  FileCheck2, 
+  LogOut, 
+  User, 
+  Menu, 
+  X,
+  Scale
+} from 'lucide-react';
 
 export default function Navbar({ currentUser, currentPath, onNavigate, onLogout }) {
-  if (!currentUser) return null;
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const roleName = currentUser.role || 'ENFORCEMENT_OFFICER';
-  const roleDisplay = roleName.replace('_', ' ');
+  const getRoleBadgeStyle = (role) => {
+    switch (role) {
+      case 'ADMIN':
+        return 'bg-purple-50 text-purple-700 border-purple-200';
+      case 'SUPERVISOR':
+        return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+      default:
+        return 'bg-blue-50 text-blue-700 border-blue-200';
+    }
+  };
 
   const navItems = [
-    { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/' },
-    { key: 'scan', label: 'Image Scan', icon: Scan, path: '/scan' },
-    { key: 'history', label: 'Scan History', icon: History, path: '/scans' },
-    { key: 'reviews', label: 'Review Queue', icon: FileCheck, path: '/reviews' },
+    { label: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { label: 'Image Scan', path: '/scan', icon: Scan },
+    { label: 'Scan History', path: '/scans', icon: History },
+    { label: 'Review Queue', path: '/reviews', icon: FileCheck2 },
   ];
 
+  const handleNavClick = (path) => {
+    onNavigate(path);
+    setMobileMenuOpen(false);
+  };
+
   return (
-    <header className="bg-slate-900/90 border-b border-slate-800 backdrop-blur-md sticky top-0 z-40">
+    <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
           {/* Brand Logo & Title */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => onNavigate('/')}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-emerald-500 p-0.5 shadow-lg shadow-cyan-500/20">
-              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-                <Shield className="w-5 h-5 text-cyan-400" />
-              </div>
+          <div 
+            onClick={() => handleNavClick('/')}
+            className="flex items-center gap-3 cursor-pointer group"
+          >
+            <div className="p-2 bg-blue-600 text-white rounded-xl shadow-xs group-hover:bg-blue-700 transition">
+              <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-extrabold text-base tracking-tight text-slate-100">
-                  PackCheck <span className="text-cyan-400">AI</span>
-                </h1>
-                <span className="text-[10px] font-bold px-1.5 py-0.2 bg-slate-800 text-slate-400 rounded border border-slate-700">
-                  PROTOTYPE
+                <span className="font-bold text-slate-900 text-lg tracking-tight group-hover:text-blue-600 transition">
+                  PackCheck AI
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                  SIH26034
                 </span>
               </div>
-              <p className="text-[10px] font-medium text-slate-400 tracking-wide">
-                Legal Metrology Enforcement System
+              <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
+                Legal Metrology Compliance System
               </p>
             </div>
           </div>
 
-          {/* Navigation Items */}
+          {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = currentPath === item.path || (item.path !== '/' && currentPath.startsWith(item.path));
+              const isActive = currentPath === item.path || (item.path === '/scans' && currentPath.startsWith('/scans'));
+              
               return (
                 <button
-                  key={item.key}
-                  onClick={() => onNavigate(item.path)}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+                  key={item.path}
+                  onClick={() => handleNavClick(item.path)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${
                     isActive
-                      ? 'bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                      ? 'bg-blue-50 text-blue-700 font-semibold shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
-                  {item.label}
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                  <span>{item.label}</span>
                 </button>
               );
             })}
           </nav>
 
-          {/* User Profile & Logout */}
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800">
-              <UserIcon className="w-4 h-4 text-slate-400" />
-              <div className="text-left">
-                <p className="text-xs font-semibold text-slate-200 leading-none">
-                  {currentUser.full_name || currentUser.fullName || currentUser.email}
-                </p>
-                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">
-                  {roleDisplay}
-                </span>
+          {/* User Identity & Logout */}
+          <div className="hidden sm:flex items-center gap-3">
+            {currentUser && (
+              <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="w-7 h-7 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-xs shrink-0">
+                  <User className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left leading-tight">
+                  <div className="text-xs font-semibold text-slate-900 truncate max-w-[130px]">
+                    {currentUser.full_name || currentUser.fullName}
+                  </div>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${getRoleBadgeStyle(currentUser.role)}`}>
+                    {currentUser.role}
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
 
             <button
               onClick={onLogout}
-              title="Logout"
-              className="p-2 rounded-lg bg-slate-800 hover:bg-rose-950 hover:text-rose-300 text-slate-400 border border-slate-700 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+              title="Sign Out"
+              className="p-2 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 hover:border-rose-200 transition cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Logout</span>
+            </button>
+          </div>
+
+          {/* Mobile Hamburger Toggle */}
+          <div className="flex md:hidden items-center gap-2">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 transition"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
+      </div>
 
-        {/* Mobile Navigation bar */}
-        <div className="flex md:hidden items-center justify-around py-2 border-t border-slate-800/80">
+      {/* Mobile Drawer Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-4 space-y-2 animate-fade-in shadow-lg">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = currentPath === item.path || (item.path !== '/' && currentPath.startsWith(item.path));
+            const isActive = currentPath === item.path || (item.path === '/scans' && currentPath.startsWith('/scans'));
+            
             return (
               <button
-                key={item.key}
-                onClick={() => onNavigate(item.path)}
-                className={`flex flex-col items-center gap-1 px-3 py-1 rounded-md text-[10px] font-semibold transition-all ${
-                  isActive ? 'text-cyan-400' : 'text-slate-400'
+                key={item.path}
+                onClick={() => handleNavClick(item.path)}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition ${
+                  isActive
+                    ? 'bg-blue-50 text-blue-700 font-semibold'
+                    : 'text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                <Icon className="w-4 h-4" />
-                {item.label}
+                <Icon className="w-4 h-4 text-blue-600" />
+                <span>{item.label}</span>
               </button>
             );
           })}
+
+          {currentUser && (
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
+                  <User className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-900">
+                    {currentUser.full_name || currentUser.fullName}
+                  </div>
+                  <div className="text-[10px] text-slate-500">{currentUser.email}</div>
+                </div>
+              </div>
+              <button
+                onClick={onLogout}
+                className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 text-xs font-medium flex items-center gap-1.5"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </header>
   );
 }

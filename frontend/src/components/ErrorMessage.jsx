@@ -1,21 +1,26 @@
 import React from 'react';
-import { AlertTriangle, XCircle } from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 
-export default function ErrorMessage({ message, onDismiss }) {
+export default function ErrorMessage({ title = 'Error Encountered', message, onRetry }) {
   if (!message) return null;
 
   return (
-    <div className="bg-red-950/80 border border-red-800/60 text-red-200 px-4 py-3 rounded-lg shadow-lg flex items-start space-x-3 my-4">
-      <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-      <div className="flex-1 text-sm font-medium">
-        <span className="block">{message}</span>
+    <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in shadow-2xs">
+      <div className="flex items-start gap-3">
+        <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5 sm:mt-0" />
+        <div>
+          <h4 className="font-semibold text-rose-900">{title}</h4>
+          <p className="text-rose-700 mt-0.5">{message}</p>
+        </div>
       </div>
-      {onDismiss && (
+      
+      {onRetry && (
         <button
-          onClick={onDismiss}
-          className="text-red-400 hover:text-red-200 transition-colors p-1 rounded-md"
+          onClick={onRetry}
+          className="px-3 py-1.5 rounded-lg bg-white hover:bg-rose-100 border border-rose-300 text-rose-700 hover:text-rose-900 font-medium transition flex items-center gap-1.5 shrink-0 cursor-pointer text-xs"
         >
-          <XCircle className="w-4 h-4" />
+          <RefreshCw className="w-3.5 h-3.5" />
+          <span>Retry</span>
         </button>
       )}
     </div>

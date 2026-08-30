@@ -1,310 +1,326 @@
 import React, { useState } from 'react';
+import { 
+  Upload, 
+  Scan, 
+  FileText, 
+  CheckCircle2, 
+  AlertTriangle, 
+  XCircle, 
+  Loader2, 
+  Image as ImageIcon,
+  Tag,
+  ShieldCheck,
+  Scale,
+  Sparkles,
+  RefreshCw
+} from 'lucide-react';
 import { scanApi } from '../api/scanApi';
-import LoadingSpinner from '../components/LoadingSpinner';
-import ErrorMessage from '../components/ErrorMessage';
-import StatusBadge from '../components/StatusBadge';
-import ImageBoundingBoxViewer from '../components/ImageBoundingBoxViewer';
 import DeclarationCard from '../components/DeclarationCard';
 import RuleResultCard from '../components/RuleResultCard';
-import { UploadCloud, Image as ImageIcon, Scan, CheckCircle2, ShieldAlert, FileText, ArrowRight, RotateCcw } from 'lucide-react';
+import ImageBoundingBoxViewer from '../components/ImageBoundingBoxViewer';
+import StatusBadge from '../components/StatusBadge';
+import ErrorMessage from '../components/ErrorMessage';
 
-export default function ScanPage({ currentUser, onNavigate }) {
+export default function ScanPage({ onNavigate }) {
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [productName, setProductName] = useState('Packaged Commodity');
-  const [category, setCategory] = useState('Grocery');
+  const [productName, setProductName] = useState('');
+  const [category, setCategory] = useState('FOOD_BEVERAGE');
   const [isImported, setIsImported] = useState(false);
 
   const [analyzing, setAnalyzing] = useState(false);
-  const [error, setError] = useState(null);
   const [scanResult, setScanResult] = useState(null);
-  const [activeDeclarationKey, setActiveDeclarationKey] = useState(null);
+  const [error, setError] = useState(null);
+  const [selectedBox, setSelectedBox] = useState(null);
 
-  const handleFileChange = (selectedFile) => {
-    if (!selectedFile) return;
-    if (!selectedFile.type.startsWith('image/')) {
-      setError('Please select a valid image file (JPG, PNG, WEBP).');
-      return;
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setPreviewUrl(URL.createObjectURL(selectedFile));
+      setScanResult(null);
+      setError(null);
     }
-    setFile(selectedFile);
-    setPreviewUrl(URL.createObjectURL(selectedFile));
-    setError(null);
-    setScanResult(null);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileChange(e.dataTransfer.files[0]);
+      const selectedFile = e.dataTransfer.files[0];
+      setFile(selectedFile);
+      setPreviewUrl(URL.createObjectURL(selectedFile));
+      setScanResult(null);
+      setError(null);
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleAnalyze = async (e) => {
     e.preventDefault();
     if (!file) {
-      setError('Please choose or drop a package label image to analyze.');
+      setError('Please select or upload a commodity label image first.');
       return;
     }
 
     setAnalyzing(true);
     setError(null);
 
+    const formData = new FormData();
+    formData.append('file', file);
+    if (productName) formData.append('product_name', productName);
+    if (category) formData.append('category', category);
+    formData.append('is_imported', String(isImported));
+
     try {
-      const officerId = currentUser?.id || 1;
-      const response = await scanApi.analyzeScan(file, productName, category, isImported, officerId);
-      setScanResult(response);
+      const result = await scanApi.analyzeScan(formData);
+      setScanResult(result);
     } catch (err) {
-      console.error('Scan analysis error:', err);
-      const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'Scan analysis failed.';
-      setError(msg);
+      setError(err.response?.data?.message || 'Failed to complete scan analysis. Please check AI microservice connectivity.');
     } finally {
       setAnalyzing(false);
     }
   };
 
+  const handleReset = () => {
+    setFile(null);
+    setPreviewUrl(null);
+    setProductName('');
+    setCategory('FOOD_BEVERAGE');
+    setIsImported(false);
+    setScanResult(null);
+    setError(null);
+    setSelectedBox(null);
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-1">
-            <Scan className="w-4 h-4" />
-            Automated Label Inspection
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200 mb-1">
+            <Scan className="w-3.5 h-3.5" />
+            <span>AI Label Extraction & Verification Engine</span>
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-100 tracking-tight">
-            New Package Image Analysis
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+            New Package Label Scan
           </h1>
-          <p className="text-xs text-slate-400">
-            Upload a packaged commodity label image for OCR extraction and Legal Metrology Rules, 2011 rule verification.
+          <p className="text-sm text-slate-600">
+            Upload a packaged commodity label image for automated OCR extraction and Legal Metrology rule verification.
           </p>
         </div>
 
         {scanResult && (
           <button
-            onClick={() => {
-              setScanResult(null);
-              setFile(null);
-              setPreviewUrl(null);
-            }}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold border border-slate-700 transition-colors flex items-center gap-1.5 self-start"
+            onClick={handleReset}
+            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 transition flex items-center gap-2 cursor-pointer"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Scan Another Image
+            <RefreshCw className="w-4 h-4" />
+            <span>Scan Another Label</span>
           </button>
         )}
       </div>
 
-      <ErrorMessage message={error} onDismiss={() => setError(null)} />
+      {error && <ErrorMessage message={error} />}
 
-      {/* Main Upload Form & View Grid */}
+      {/* Main Grid Layout */}
       {!scanResult ? (
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <form onSubmit={handleAnalyze} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* File Picker & Dropzone (7 cols) */}
-          <div className="lg:col-span-7 space-y-4">
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-              Package Label Image File
-            </label>
+          {/* Left Column: Image Upload Drop Zone */}
+          <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-blue-600" />
+              <span>Package Label Image Upload</span>
+            </h3>
 
             <div
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all flex flex-col items-center justify-center min-h-[320px] ${
-                previewUrl
-                  ? 'border-cyan-500/60 bg-slate-950/80'
-                  : 'border-slate-800 hover:border-cyan-500/40 bg-slate-900/60 hover:bg-slate-900'
-              }`}
+              className="relative border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50/60 hover:bg-blue-50/30 transition-all rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[300px] cursor-pointer group"
             >
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              />
+
               {previewUrl ? (
-                <div className="space-y-4 w-full flex flex-col items-center">
+                <div className="space-y-3">
                   <img
                     src={previewUrl}
-                    alt="Package Preview"
-                    className="max-h-64 rounded-lg object-contain border border-slate-800 shadow-md"
+                    alt="Uploaded Label Preview"
+                    className="max-h-64 rounded-xl object-contain mx-auto border border-slate-200 shadow-xs"
                   />
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-300 font-mono truncate max-w-xs">{file?.name}</span>
-                    <label className="cursor-pointer text-xs text-cyan-400 hover:underline font-semibold">
-                      Change File
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleFileChange(e.target.files[0])}
-                        className="hidden"
-                      />
-                    </label>
+                  <div className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 inline-block">
+                    Selected File: {file?.name}
                   </div>
                 </div>
               ) : (
-                <label className="cursor-pointer flex flex-col items-center space-y-3">
-                  <div className="w-16 h-16 rounded-full bg-slate-950 flex items-center justify-center border border-slate-800 text-cyan-400 shadow-inner">
-                    <UploadCloud className="w-8 h-8" />
+                <div className="space-y-3">
+                  <div className="p-4 bg-white rounded-full text-blue-600 shadow-xs border border-slate-200 group-hover:scale-110 transition inline-block">
+                    <Upload className="w-8 h-8" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-slate-200">
-                      Click to upload or drag & drop image
+                    <p className="text-sm font-bold text-slate-800">
+                      Drag & Drop package label image here
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Supports JPG, PNG, WEBP high-resolution product labels
+                      Supports JPG, PNG, WEBP (High-resolution packaging labels recommended)
                     </p>
                   </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileChange(e.target.files[0])}
-                    className="hidden"
-                  />
-                </label>
+                  <span className="inline-block px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-xs group-hover:bg-blue-700 transition">
+                    Browse File
+                  </span>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Commodity Details Form (5 cols) */}
-          <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
-            <h2 className="text-base font-bold text-slate-100 border-b border-slate-800 pb-3 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-cyan-400" />
-              Commodity Metadata
-            </h2>
+          {/* Right Column: Inspection Metadata Inputs */}
+          <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-5 flex flex-col justify-between">
+            <div className="space-y-4">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Tag className="w-5 h-5 text-blue-600" />
+                <span>Commodity Metadata</span>
+              </h3>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                Product Name
-              </label>
-              <input
-                type="text"
-                value={productName}
-                onChange={(e) => setProductName(e.target.value)}
-                placeholder="e.g. Whole Wheat Flour 5kg"
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
-              />
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Product / Commodity Name
+                </label>
+                <input
+                  type="text"
+                  value={productName}
+                  onChange={(e) => setProductName(e.target.value)}
+                  placeholder="e.g. Premium Basmati Rice 5kg"
+                  className="w-full bg-white border border-slate-300 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Commodity Category
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full bg-white border border-slate-300 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 transition outline-none"
+                >
+                  <option value="FOOD_BEVERAGE">Food & Beverage</option>
+                  <option value="COSMETICS">Cosmetics & Personal Care</option>
+                  <option value="ELECTRONICS">Electronics & Electricals</option>
+                  <option value="PHARMACEUTICALS">Pharmaceuticals / Health</option>
+                  <option value="GENERAL">General Packaged Goods</option>
+                </select>
+              </div>
+
+              <div className="pt-2">
+                <label className="flex items-center gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition">
+                  <input
+                    type="checkbox"
+                    checked={isImported}
+                    onChange={(e) => setIsImported(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                  />
+                  <div>
+                    <div className="text-xs font-bold text-slate-900">Imported Commodity Package</div>
+                    <div className="text-[11px] text-slate-500">Applies Rule 6(2) importer declaration mandates</div>
+                  </div>
+                </label>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                Category
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
+            {/* Submit Analyze Button */}
+            <div className="pt-4 border-t border-slate-100">
+              <button
+                type="submit"
+                disabled={analyzing || !file}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-3 px-4 rounded-xl shadow-md shadow-blue-500/20 transition flex items-center justify-center gap-2 text-sm cursor-pointer"
               >
-                <option value="Grocery">Grocery / Food Item</option>
-                <option value="Cosmetics">Cosmetics & Personal Care</option>
-                <option value="Electronics">Electronics & Hardware</option>
-                <option value="Pharmaceuticals">Pharmaceuticals & Healthcare</option>
-                <option value="Retail Goods">General Retail Goods</option>
-              </select>
+                {analyzing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Running AI OCR & Legal Rule Verification...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>Run Preliminary Analysis</span>
+                  </>
+                )}
+              </button>
             </div>
-
-            <div className="flex items-center gap-3 bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-              <input
-                type="checkbox"
-                id="isImportedCheck"
-                checked={isImported}
-                onChange={(e) => setIsImported(e.target.checked)}
-                className="w-4 h-4 rounded text-cyan-500 focus:ring-cyan-400 bg-slate-900 border-slate-700"
-              />
-              <label htmlFor="isImportedCheck" className="text-xs text-slate-200 font-medium cursor-pointer">
-                Commodity is Imported into India (Triggers Rule 6(2) country of origin & importer declaration checks)
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={analyzing || !file}
-              className="w-full py-3.5 bg-cyan-400 hover:bg-cyan-300 disabled:opacity-50 text-slate-950 font-bold text-sm rounded-xl shadow-lg shadow-cyan-500/20 transition-all flex items-center justify-center gap-2"
-            >
-              {analyzing ? (
-                <LoadingSpinner message="Extracting OCR & Evaluating Rules..." size="small" />
-              ) : (
-                <>
-                  <Scan className="w-4 h-4" />
-                  Analyze Label Image
-                </>
-              )}
-            </button>
           </div>
         </form>
       ) : (
-        /* Results View */
+        /* Analysis Results Output View */
         <div className="space-y-8 animate-fade-in">
           
-          {/* Summary Banner */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+          {/* Assessment Banner */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <span className="text-xs font-mono font-bold text-cyan-400 bg-cyan-950 px-2.5 py-1 rounded border border-cyan-800">
-                  {scanResult.scan_reference_number}
+                <StatusBadge status={scanResult.preliminary_assessment} />
+                <span className="text-xs font-mono font-bold text-slate-500">
+                  Ref: {scanResult.scan_reference_number}
                 </span>
-                <StatusBadge status={scanResult.preliminary_assessment} type="assessment" />
-                <StatusBadge status={scanResult.review_status} type="review" />
               </div>
-              <h2 className="text-xl font-extrabold text-slate-100">{scanResult.product_name} ({scanResult.category})</h2>
-              <p className="text-xs text-slate-400">
-                OCR Confidence: <strong className="text-emerald-400">{Math.round((scanResult.overall_ocr_confidence || 0.95) * 100)}%</strong> • Status: <strong className="text-slate-200">{scanResult.ocr_quality_status || 'OPTIMAL'}</strong>
+              <h2 className="text-xl font-bold text-slate-900">
+                {scanResult.product_name || 'Unspecified Commodity Label'}
+              </h2>
+              <p className="text-xs text-slate-500">
+                Analyzed on {new Date(scanResult.scan_timestamp || Date.now()).toLocaleString()}
               </p>
             </div>
 
-            <button
-              onClick={() => onNavigate(`/scans/${scanResult.scan_reference_number}`)}
-              className="px-5 py-2.5 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold text-xs rounded-xl shadow-md transition-colors flex items-center gap-1.5 self-start md:self-auto"
-            >
-              Open Full Scan Details <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Statutory Disclaimer Banner */}
-          <div className="bg-amber-950/40 border border-amber-800/60 p-4 rounded-xl text-xs text-amber-200 flex items-center gap-3">
-            <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0" />
-            <span>
-              <strong>Statutory Compliance Disclaimer:</strong> {scanResult.disclaimer || "AI preliminary assessment — human officer verification required under Legal Metrology Rules, 2011."}
-            </span>
-          </div>
-
-          {/* Bounding Box Visualizer & Declarations Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
-            {/* Image Bounding Box Visualizer (7 cols) */}
-            <div className="lg:col-span-7">
-              <ImageBoundingBoxViewer
-                imageUrl={scanResult.image_url}
-                declarations={scanResult.declarations || []}
-                activeKey={activeDeclarationKey}
-                onSelectKey={(key) => setActiveDeclarationKey(key)}
-              />
-            </div>
-
-            {/* Extracted Declarations Cards (5 cols) */}
-            <div className="lg:col-span-5 space-y-4">
-              <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center justify-between">
-                <span>Extracted Mandatory Declarations</span>
-                <span className="text-slate-500 font-mono">({scanResult.declarations?.length || 0} fields)</span>
-              </h3>
-
-              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                {scanResult.declarations?.map((decl, idx) => (
-                  <DeclarationCard
-                    key={idx}
-                    declaration={decl}
-                    isSelected={activeDeclarationKey === (decl.declaration_key || decl.field_name)}
-                    onSelect={(key) => setActiveDeclarationKey(key)}
-                  />
-                ))}
-              </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => onNavigate(`/scans/${scanResult.scan_reference_number}`)}
+                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
+              >
+                <FileText className="w-4 h-4" />
+                <span>View Full Inspection Report</span>
+              </button>
             </div>
           </div>
 
-          {/* Rule Evaluation Results Section */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-            <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-cyan-400" />
-              Legal Metrology Compliance Rule Evaluation
+          {/* Visual Bounding Boxes Section */}
+          <ImageBoundingBoxViewer
+            imageUrl={scanResult.image_url || previewUrl}
+            declarations={scanResult.extracted_declarations || []}
+            selectedBox={selectedBox}
+            onSelectBox={(dec) => setSelectedBox(dec)}
+          />
+
+          {/* Extracted Declarations Grid */}
+          <div className="space-y-4">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-blue-600" />
+              <span>Extracted Statutory Declarations ({scanResult.extracted_declarations?.length || 0})</span>
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {scanResult.rule_evaluations?.map((rule, idx) => (
-                <RuleResultCard key={idx} rule={rule} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {scanResult.extracted_declarations?.map((dec, idx) => (
+                <DeclarationCard
+                  key={idx}
+                  declaration={dec}
+                  onSelectBox={(d) => setSelectedBox(d)}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Rule Compliance Evaluation Results */}
+          <div className="space-y-4">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Scale className="w-5 h-5 text-blue-600" />
+              <span>Legal Metrology Rule Evaluations ({scanResult.rule_evaluation_results?.length || 0})</span>
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {scanResult.rule_evaluation_results?.map((res, idx) => (
+                <RuleResultCard key={idx} ruleResult={res} />
               ))}
             </div>
           </div>

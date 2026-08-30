@@ -75,7 +75,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       
       {/* Top Application Navbar */}
       <Navbar
@@ -115,16 +115,16 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-slate-900 border-t border-slate-800 text-xs text-slate-400 py-6 mt-12">
+      <footer className="bg-white border-t border-slate-200 text-xs text-slate-500 py-6 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-cyan-400" />
-            <span className="font-bold text-slate-200">PackCheck AI</span>
-            <span>— Legal Metrology Enforcement & Preliminary Compliance System</span>
+            <ShieldCheck className="w-5 h-5 text-blue-600" />
+            <span className="font-bold text-slate-900">PackCheck AI</span>
+            <span>— Legal Metrology Compliance System (SIH26034)</span>
           </div>
-          <div className="flex items-center gap-2 text-amber-400 text-[11px] font-medium bg-amber-950/40 px-3 py-1 rounded-full border border-amber-800/40">
-            <Scale className="w-3.5 h-3.5" />
-            <span>AI preliminary assessment — human officer verification required</span>
+          <div className="flex items-center gap-2 text-amber-800 text-[11px] font-medium bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+            <Scale className="w-3.5 h-3.5 text-amber-600" />
+            <span>Advisory AI output — human officer verification required</span>
           </div>
         </div>
       </footer>

@@ -1,133 +1,148 @@
 import React, { useState } from 'react';
-import { reviewApi } from '../api/reviewApi';
-import ErrorMessage from './ErrorMessage';
-import { ShieldCheck, X, Check, Loader2 } from 'lucide-react';
+import { ShieldCheck, Scale, AlertTriangle, X, Loader2, CheckCircle2 } from 'lucide-react';
+import StatusBadge from './StatusBadge';
 
-export default function ManualReviewModal({ scanReference, currentReviewStatus, onSuccess, onClose }) {
+export default function ManualReviewModal({ scan, isOpen, onClose, onSubmit, submitting }) {
   const [newStatus, setNewStatus] = useState('OFFICER_VERIFIED');
   const [actionTaken, setActionTaken] = useState('APPROVED_ASSESSMENT');
   const [officerNotes, setOfficerNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
 
-  const handleSubmit = async (e) => {
+  if (!isOpen || !scan) return null;
+
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (!actionTaken.trim()) {
-      setError('Please specify the action taken.');
-      return;
-    }
-
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      const reviewRequest = {
-        new_status: newStatus,
-        action_taken: actionTaken,
-        officer_notes: officerNotes,
-      };
-
-      const updatedScan = await reviewApi.submitManualReview(scanReference, reviewRequest);
-      if (onSuccess) {
-        onSuccess(updatedScan);
-      }
-    } catch (err) {
-      console.error('Failed to submit manual review:', err);
-      const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to submit review.';
-      setError(msg);
-    } finally {
-      setSubmitting(false);
-    }
+    onSubmit({
+      new_status: newStatus,
+      action_taken: actionTaken,
+      officer_notes: officerNotes,
+    });
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 transition-colors p-1 rounded-lg hover:bg-slate-800"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="flex items-center gap-2 mb-4">
-          <ShieldCheck className="w-6 h-6 text-cyan-400" />
-          <h2 className="text-lg font-bold text-slate-100">Enforcement Officer Review Sign-Off</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-scale-in">
+        
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-blue-50 border border-blue-200 rounded-xl text-blue-700">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 leading-tight">
+                Submit Officer Manual Review
+              </h3>
+              <p className="text-xs text-slate-500 font-mono mt-0.5">
+                Scan Reference: {scan.scan_reference_number}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-          Submitting a manual review decision will update the scan review status and append an immutable audit log entry containing your officer identity and rationale.
-        </p>
+        {/* Content Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          
+          {/* AI Preliminary Assessment Callout */}
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">
+                AI Preliminary Assessment
+              </span>
+              <StatusBadge status={scan.preliminary_assessment} />
+            </div>
+            <p className="text-slate-700 text-xs font-medium">
+              Product: <span className="font-bold text-slate-900">{scan.product_name || 'Unspecified Commodity'}</span>
+            </p>
+          </div>
 
-        <ErrorMessage message={error} onDismiss={() => setError(null)} />
+          {/* Statutory Disclaimer */}
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <span className="leading-snug">
+              <strong>Statutory Notice:</strong> Human officer verification is required under Legal Metrology Rules, 2011 before issuing compliance orders.
+            </span>
+          </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Status Selection */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-              New Review Status
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Updated Review Status <span className="text-rose-500">*</span>
             </label>
             <select
               value={newStatus}
               onChange={(e) => setNewStatus(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
+              required
+              className="w-full bg-white border border-slate-300 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 rounded-xl px-3.5 py-2 text-sm text-slate-900 transition outline-none"
             >
-              <option value="OFFICER_VERIFIED">OFFICER_VERIFIED (Official Approval / Verification)</option>
-              <option value="UNDER_REVIEW">UNDER_REVIEW (In-Progress Investigation)</option>
-              <option value="PENDING_REVIEW">PENDING_REVIEW (Re-queue for Review)</option>
+              <option value="OFFICER_VERIFIED">OFFICER_VERIFIED (Official Verification Complete)</option>
+              <option value="UNDER_REVIEW">UNDER_REVIEW (Inspection Pending Further Evidence)</option>
+              <option value="PENDING_REVIEW">PENDING_REVIEW (Awaiting Initial Officer Audit)</option>
             </select>
           </div>
 
+          {/* Action Taken Selection */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-              Action Taken
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Action Taken Decision <span className="text-rose-500">*</span>
             </label>
             <select
               value={actionTaken}
               onChange={(e) => setActionTaken(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
+              required
+              className="w-full bg-white border border-slate-300 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 rounded-xl px-3.5 py-2 text-sm text-slate-900 transition outline-none"
             >
-              <option value="APPROVED_ASSESSMENT">APPROVED_ASSESSMENT (Confirmed Preliminary AI Assessment)</option>
-              <option value="CONFIRMED_VIOLATION">CONFIRMED_VIOLATION (Issued Violation Warning / Notice)</option>
-              <option value="DISMISSED_VIOLATION">DISMISSED_VIOLATION (Dismissed Violation False Positive)</option>
-              <option value="REQUESTED_RESCAN">REQUESTED_RESCAN (Requested Higher Resolution Re-scan)</option>
+              <option value="APPROVED_ASSESSMENT">APPROVED_ASSESSMENT (Confirm AI Preliminary Assessment)</option>
+              <option value="CONFIRMED_VIOLATION">CONFIRMED_VIOLATION (Issue Statutory Non-Compliance Order)</option>
+              <option value="DISMISSED_VIOLATION">DISMISSED_VIOLATION (Dismiss Preliminary AI Violation Flag)</option>
+              <option value="EDITED_DECLARATION">EDITED_DECLARATION (Manual Field Override Applied)</option>
             </select>
           </div>
 
+          {/* Officer Notes */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-              Officer Inspection Notes & Rationale
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Officer Inspection Notes <span className="text-rose-500">*</span>
             </label>
             <textarea
-              rows={3}
               value={officerNotes}
               onChange={(e) => setOfficerNotes(e.target.value)}
-              placeholder="Enter official enforcement inspection details, rule citations, or notes..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 placeholder-slate-600"
+              placeholder="Record official inspection notes, field verification evidence, or legal justification..."
+              rows={3}
+              required
+              className="w-full bg-white border border-slate-300 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 rounded-xl px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 transition outline-none resize-none"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
+          {/* Action Buttons */}
+          <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition cursor-pointer"
             >
               Cancel
             </button>
+
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 text-sm font-semibold text-slate-950 bg-cyan-400 hover:bg-cyan-300 rounded-lg transition-all shadow-lg shadow-cyan-500/20 flex items-center gap-1.5 disabled:opacity-50"
+              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Submitting Audit Log...
+                  <span>Submitting Review...</span>
                 </>
               ) : (
                 <>
-                  <Check className="w-4 h-4" />
-                  Confirm Officer Review
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Confirm Officer Review</span>
                 </>
               )}
             </button>

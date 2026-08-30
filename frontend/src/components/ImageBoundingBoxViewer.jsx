@@ -1,180 +1,164 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { API_BASE_URL } from '../api/apiClient';
-import { Eye, Layers } from 'lucide-react';
+import { Eye, Layers, ZoomIn, Info } from 'lucide-react';
 
-export default function ImageBoundingBoxViewer({
-  imageUrl,
-  declarations = [],
-  activeKey = null,
-  onSelectKey = null,
-}) {
-  const [imageState, setImageState] = useState({
-    loaded: false,
-    naturalWidth: 0,
-    naturalHeight: 0,
-    renderedWidth: 0,
-    renderedHeight: 0,
-  });
-
-  const containerRef = useRef(null);
-  const imgRef = useRef(null);
-
-  // Compute full displayable image URL
-  const fullImageUrl = imageUrl
-    ? imageUrl.startsWith('http')
-      ? imageUrl
-      : `${API_BASE_URL}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`
-    : null;
-
-  const updateRenderedSize = () => {
-    if (imgRef.current) {
-      setImageState((prev) => ({
-        ...prev,
-        renderedWidth: imgRef.current.clientWidth,
-        renderedHeight: imgRef.current.clientHeight,
-      }));
-    }
-  };
+export default function ImageBoundingBoxViewer({ imageUrl, declarations = [], selectedBox, onSelectBox }) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 });
+  const imageRef = useRef(null);
 
   const handleImageLoad = (e) => {
-    const { naturalWidth, naturalHeight, clientWidth, clientHeight } = e.target;
-    setImageState({
-      loaded: true,
+    const { clientWidth, clientHeight, naturalWidth, naturalHeight } = e.target;
+    setDimensions({
+      width: clientWidth,
+      height: clientHeight,
       naturalWidth,
       naturalHeight,
-      renderedWidth: clientWidth,
-      renderedHeight: clientHeight,
     });
+    setImageLoaded(true);
   };
 
   useEffect(() => {
-    window.addEventListener('resize', updateRenderedSize);
-    return () => window.removeEventListener('resize', updateRenderedSize);
+    const handleResize = () => {
+      if (imageRef.current) {
+        setDimensions({
+          width: imageRef.current.clientWidth,
+          height: imageRef.current.clientHeight,
+          naturalWidth: imageRef.current.naturalWidth,
+          naturalHeight: imageRef.current.naturalHeight,
+        });
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Parse bounding box string or object
-  const parseBoundingBox = (bboxData) => {
-    if (!bboxData) return null;
-    let bbox = bboxData;
-    if (typeof bboxData === 'string') {
-      try {
-        bbox = JSON.parse(bboxData);
-      } catch (e) {
-        return null;
+  const parseBoundingBox = (bboxJson) => {
+    if (!bboxJson) return null;
+    try {
+      const coords = typeof bboxJson === 'string' ? JSON.parse(bboxJson) : bboxJson;
+      if (Array.isArray(coords) && coords.length === 4) {
+        return { x: coords[0], y: coords[1], width: coords[2], height: coords[3] };
       }
-    }
-    if (Array.isArray(bbox) && bbox.length >= 4) {
-      return { ymin: bbox[0], xmin: bbox[1], ymax: bbox[2], xmax: bbox[3] };
-    }
-    if (typeof bbox === 'object' && bbox !== null) {
-      const ymin = bbox.ymin ?? bbox.y_min ?? bbox.top;
-      const xmin = bbox.xmin ?? bbox.x_min ?? bbox.left;
-      const ymax = bbox.ymax ?? bbox.y_max ?? bbox.bottom;
-      const xmax = bbox.xmax ?? bbox.x_max ?? bbox.right;
-      if (ymin !== undefined && xmin !== undefined && ymax !== undefined && xmax !== undefined) {
-        return { ymin, xmin, ymax, xmax };
-      }
+    } catch {
+      return null;
     }
     return null;
   };
 
-  // Convert bounding box to overlay styles
-  const getBoxStyle = (decl) => {
-    const bbox = parseBoundingBox(decl.bounding_box_json || decl.boundingBoxJson || decl.bounding_box || decl.boundingBox);
-    if (!bbox || !imageState.renderedWidth || !imageState.renderedHeight) {
-      return null;
-    }
+  const getScaledBoxStyle = (box) => {
+    if (!box || dimensions.naturalWidth === 0 || dimensions.naturalHeight === 0) return {};
 
-    const { ymin, xmin, ymax, xmax } = bbox;
-    const isNormalized = ymax <= 1.0 && xmax <= 1.0;
-
-    let left, top, width, height;
-    if (isNormalized) {
-      left = xmin * imageState.renderedWidth;
-      top = ymin * imageState.renderedHeight;
-      width = (xmax - xmin) * imageState.renderedWidth;
-      height = (ymax - ymin) * imageState.renderedHeight;
+    let { x, y, width, height } = box;
+    
+    // Scale normalized coordinates [0..1]
+    if (x <= 1 && y <= 1 && width <= 1 && height <= 1) {
+      x = x * dimensions.width;
+      y = y * dimensions.height;
+      width = width * dimensions.width;
+      height = height * dimensions.height;
     } else {
-      const scaleX = imageState.renderedWidth / (imageState.naturalWidth || 1);
-      const scaleY = imageState.renderedHeight / (imageState.naturalHeight || 1);
-      left = xmin * scaleX;
-      top = ymin * scaleY;
-      width = (xmax - xmin) * scaleX;
-      height = (ymax - ymin) * scaleY;
+      // Scale absolute pixel coordinates
+      const scaleX = dimensions.width / dimensions.naturalWidth;
+      const scaleY = dimensions.height / dimensions.naturalHeight;
+      x = x * scaleX;
+      y = y * scaleY;
+      width = width * scaleX;
+      height = height * scaleY;
     }
 
     return {
-      left: `${Math.max(0, left)}px`,
-      top: `${Math.max(0, top)}px`,
-      width: `${Math.max(20, width)}px`,
-      height: `${Math.max(15, height)}px`,
+      left: `${x}px`,
+      top: `${y}px`,
+      width: `${width}px`,
+      height: `${height}px`,
     };
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl">
-      <div className="flex items-center justify-between mb-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-        <span className="flex items-center gap-2">
-          <Eye className="w-4 h-4 text-cyan-400" />
-          Package Label Visual Inspector
-        </span>
-        {imageState.loaded && (
-          <span className="flex items-center gap-1.5 text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/50">
-            <Layers className="w-3.5 h-3.5" />
-            {imageState.naturalWidth}×{imageState.naturalHeight}px
-          </span>
-        )}
+    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-3">
+      {/* Header Bar */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Layers className="w-4 h-4 text-blue-600" />
+          <h3 className="text-sm font-bold text-slate-900">
+            Package Label Visual Bounding Boxes
+          </h3>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <Info className="w-3.5 h-3.5 text-blue-500" />
+          <span>Interactive OCR Region Detection</span>
+        </div>
       </div>
 
-      {!fullImageUrl ? (
-        <div className="h-64 bg-slate-950 rounded-lg flex items-center justify-center text-slate-500 border border-slate-800">
-          No image provided for visual inspection.
-        </div>
-      ) : (
-        <div
-          ref={containerRef}
-          className="relative inline-block w-full overflow-hidden rounded-lg bg-slate-950 border border-slate-800 flex justify-center items-center"
-        >
-          <img
-            ref={imgRef}
-            src={fullImageUrl}
-            alt="Product Label Scan"
-            onLoad={handleImageLoad}
-            className="max-h-[500px] w-auto max-w-full object-contain block mx-auto rounded"
-          />
+      {/* Image Stage Container */}
+      <div className="relative bg-slate-900 rounded-xl overflow-hidden min-h-[280px] max-h-[500px] flex items-center justify-center border border-slate-200">
+        {imageUrl ? (
+          <div className="relative inline-block max-w-full max-h-[500px]">
+            <img
+              ref={imageRef}
+              src={imageUrl}
+              alt="Packaged Commodity Label"
+              onLoad={handleImageLoad}
+              className="max-w-full max-h-[500px] object-contain block mx-auto rounded-lg"
+            />
 
-          {/* Render Bounding Box Overlays */}
-          {imageState.loaded &&
-            declarations.map((decl, idx) => {
-              const key = decl.declaration_key || decl.declarationKey || decl.field_name || decl.fieldName || `decl_${idx}`;
-              const style = getBoxStyle(decl);
-              if (!style) return null;
+            {/* Bounding Box Overlays */}
+            {imageLoaded && declarations.map((dec, idx) => {
+              const box = parseBoundingBox(dec.bounding_box_json);
+              if (!box) return null;
 
-              const isSelected = activeKey === key;
-              const confidence = decl.ocr_confidence || decl.ocrConfidence || decl.confidence;
-              const confidencePercent = confidence ? Math.round(Number(confidence) * (Number(confidence) <= 1 ? 100 : 1)) : null;
+              const isSelected = selectedBox && selectedBox.declaration_key === dec.declaration_key;
+              const boxStyle = getScaledBoxStyle(box);
 
               return (
                 <div
                   key={idx}
-                  style={style}
-                  onClick={() => onSelectKey && onSelectKey(key)}
-                  className={`absolute border-2 transition-all cursor-pointer group z-10 ${
+                  onClick={() => onSelectBox && onSelectBox(dec)}
+                  style={boxStyle}
+                  className={`absolute border-2 transition-all cursor-pointer group ${
                     isSelected
-                      ? 'border-cyan-400 bg-cyan-500/25 shadow-lg shadow-cyan-500/50 ring-2 ring-cyan-300'
-                      : 'border-emerald-400 bg-emerald-500/15 hover:border-cyan-300 hover:bg-cyan-500/20'
+                      ? 'border-emerald-400 bg-emerald-500/25 ring-2 ring-emerald-300 z-30'
+                      : 'border-cyan-400 bg-cyan-500/15 hover:border-blue-400 hover:bg-blue-500/30 z-20'
                   }`}
+                  title={`${dec.declaration_key}: ${dec.extracted_value || 'Not Detected'}`}
                 >
-                  <div
-                    className={`absolute -top-6 left-0 px-1.5 py-0.5 text-[10px] font-bold rounded whitespace-nowrap shadow-md pointer-events-none ${
-                      isSelected ? 'bg-cyan-500 text-slate-950' : 'bg-slate-900/90 text-emerald-300 border border-emerald-500/40'
-                    }`}
-                  >
-                    {key} {confidencePercent !== null ? `(${confidencePercent}%)` : ''}
-                  </div>
+                  <span className={`absolute -top-6 left-0 px-2 py-0.5 text-[10px] font-bold rounded shadow-xs whitespace-nowrap ${
+                    isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-900/90 text-cyan-300'
+                  }`}>
+                    {dec.declaration_key}
+                  </span>
                 </div>
               );
             })}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400 space-y-2">
+            <Eye className="w-8 h-8 text-slate-500" />
+            <p className="text-xs">No package label image available for visual inspection.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Declarations Key Chips */}
+      {declarations.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {declarations.map((dec) => {
+            const isSelected = selectedBox && selectedBox.declaration_key === dec.declaration_key;
+            return (
+              <button
+                key={dec.declaration_key}
+                onClick={() => onSelectBox && onSelectBox(dec)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                  isSelected
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
+              >
+                {dec.declaration_key}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
