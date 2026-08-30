@@ -21,11 +21,12 @@ PackCheck AI is an **AI-assisted preliminary compliance assessment system** desi
 
 ```
 PROJECT-SIH/
-├── frontend/             # React + Vite + Tailwind CSS User Interface
-├── backend/              # Spring Boot 3 REST API & Versioned Rule Engine
-├── ai-services/          # Python FastAPI OCR & Extraction Microservice
+├── frontend/             # React + Vite + Tailwind CSS User Interface (Dockerfile included)
+├── backend/              # Spring Boot 3 REST API & Versioned Rule Engine (Dockerfile included)
+├── ai-services/          # Python FastAPI OCR & Extraction Microservice (Dockerfile included)
 ├── database/             # Versioned MySQL Initialization SQL Scripts
 ├── docs/                 # System Architecture, Database, API, Test & Dev Guides
+├── docker-compose.yml    # One-command full-stack container deployment
 ├── .env.example          # Environment Configuration Blueprint
 ├── README.md             # Project Overview & Setup Guide
 └── implementation_plan.md# Approved SIH Architectural Specification
@@ -33,7 +34,28 @@ PROJECT-SIH/
 
 ---
 
-## Quick Start (Local Run Commands)
+## 🚀 One-Command Docker Deployment
+
+Deploy the complete multi-container stack (Database, AI Vision Service, Spring Backend, and Frontend):
+
+```bash
+docker-compose up --build -d
+```
+
+Access services:
+- **Frontend Dashboard**: http://localhost:3000
+- **Spring Boot REST API**: http://localhost:8080/api/v1/health
+- **AI OCR Microservice**: http://localhost:8000/health
+- **MySQL Database**: `localhost:3306` (Database: `packcheck_db`)
+
+To stop all services:
+```bash
+docker-compose down
+```
+
+---
+
+## Quick Start (Manual Local Run Commands)
 
 ### 1. Database Setup
 ```bash
