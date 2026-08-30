@@ -87,6 +87,60 @@ npm run dev
 
 ---
 
+## 🔐 Prototype Authentication & Role-Based Access Control (RBAC)
+
+PackCheck AI integrates a Spring Security + JWT prototype authentication system enforcing Role-Based Access Control (RBAC).
+
+### Supported Roles
+1. `ENFORCEMENT_OFFICER`: Initiate product scan analyses, view scans & histories, perform review actions.
+2. `SUPERVISOR`: View scans, audit officer compliance assessments, access supervisor review reports.
+3. `ADMIN`: System administration, compliance rule configuration, user role management.
+
+### Prototype Demo Credentials
+When `app.demo-users.enabled=true` (default), the system automatically seeds three demo accounts:
+
+| Role | Email | Password |
+| :--- | :--- | :--- |
+| **ENFORCEMENT_OFFICER** | `officer@packcheck.ai` | `PackCheck@123` |
+| **SUPERVISOR** | `supervisor@packcheck.ai` | `PackCheck@123` |
+| **ADMIN** | `admin@packcheck.ai` | `PackCheck@123` |
+
+> ⚠️ **Notice:** Demo credentials are provided strictly for local SIH prototype demonstration and testing. For staging or production deployments, set `APP_DEMO_USERS_ENABLED=false`.
+
+### Authentication API
+- **Endpoint**: `POST /api/v1/auth/login`
+- **Request Body**:
+  ```json
+  {
+    "email": "officer@packcheck.ai",
+    "password": "PackCheck@123"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "token": "<JWT_BEARER_TOKEN>",
+    "token_type": "Bearer",
+    "expires_in": 86400,
+    "user": {
+      "id": 2,
+      "full_name": "Demo Officer",
+      "email": "officer@packcheck.ai",
+      "role": "ENFORCEMENT_OFFICER",
+      "jurisdiction_zone": "Zone-A",
+      "active": true
+    }
+  }
+  ```
+
+### Configuration & Environment Options
+- **JWT Secret**: Configure via environment variable `JWT_SECRET` (default `PackCheckPrototypeSecretKeyForJwtTokenGeneration2026!SIH26034`).
+- **JWT Expiration**: Configure via `JWT_EXPIRATION_MS` (default `86400000` ms / 24 hours).
+- **Disable Demo Users**: Set `APP_DEMO_USERS_ENABLED=false` or `app.demo-users.enabled=false`.
+- **CORS Allowed Origins**: Set `CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173`.
+
+---
+
 ## Documentation Links
 - [System Architecture](docs/architecture.md)
 - [Database Schema & ERD](docs/database-design.md)

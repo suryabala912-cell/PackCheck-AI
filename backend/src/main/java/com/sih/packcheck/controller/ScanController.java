@@ -2,29 +2,36 @@ package com.sih.packcheck.controller;
 
 import com.sih.packcheck.dto.ScanAnalysisRequest;
 import com.sih.packcheck.dto.ScanResponseDto;
+import com.sih.packcheck.entity.User;
+import com.sih.packcheck.repository.UserRepository;
 import com.sih.packcheck.service.ScanService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/scans")
-@CrossOrigin(origins = "*")
 public class ScanController {
 
     private static final Logger logger = LoggerFactory.getLogger(ScanController.class);
 
     private final ScanService scanService;
+    private final UserRepository userRepository;
 
-    public ScanController(ScanService scanService) {
+    public ScanController(ScanService scanService, UserRepository userRepository) {
         this.scanService = scanService;
+        this.userRepository = userRepository;
     }
 
     @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -44,8 +51,19 @@ public class ScanController {
             return ResponseEntity.badRequest().body(error);
         }
 
+        Long effectiveOfficerId = officerId;
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated() && !(authentication instanceof AnonymousAuthenticationToken)) {
+            String userEmail = authentication.getName();
+            Optional<User> authUser = userRepository.findByEmail(userEmail);
+            if (authUser.isPresent()) {
+                effectiveOfficerId = authUser.get().getId();
+                logger.info("Authenticated officer identity binding: user ID {}", effectiveOfficerId);
+            }
+        }
+
         try {
-            ScanAnalysisRequest request = new ScanAnalysisRequest(productName, category, isImported, officerId);
+            ScanAnalysisRequest request = new ScanAnalysisRequest(productName, category, isImported, effectiveOfficerId);
             ScanResponseDto response = scanService.analyzeScan(file, request);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {

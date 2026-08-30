@@ -3,6 +3,9 @@ package com.sih.packcheck.controller;
 import com.sih.packcheck.config.SecurityConfig;
 import com.sih.packcheck.dto.ScanAnalysisRequest;
 import com.sih.packcheck.dto.ScanResponseDto;
+import com.sih.packcheck.repository.UserRepository;
+import com.sih.packcheck.security.CustomUserDetailsService;
+import com.sih.packcheck.security.JwtService;
 import com.sih.packcheck.service.ScanService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -11,6 +14,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -27,7 +31,17 @@ public class ScanControllerTest {
     @MockBean
     private ScanService scanService;
 
+    @MockBean
+    private UserRepository userRepository;
+
+    @MockBean
+    private JwtService jwtService;
+
+    @MockBean
+    private CustomUserDetailsService userDetailsService;
+
     @Test
+    @WithMockUser(roles = "ENFORCEMENT_OFFICER")
     public void testAnalyzeScanSuccess() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "label.jpg", "image/jpeg", "fake image bytes".getBytes()
@@ -52,6 +66,7 @@ public class ScanControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ENFORCEMENT_OFFICER")
     public void testAnalyzeScanEmptyFileReturnsBadRequest() throws Exception {
         MockMultipartFile emptyFile = new MockMultipartFile(
                 "file", "empty.jpg", "image/jpeg", new byte[0]
@@ -63,6 +78,7 @@ public class ScanControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ENFORCEMENT_OFFICER")
     public void testAnalyzeScanAiServiceErrorReturnsInternalServerError() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "label.jpg", "image/jpeg", "image bytes".getBytes()
