@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ShieldCheck, Mail, Lock, LogIn, AlertCircle, Loader2, UserCheck, ShieldAlert } from 'lucide-react';
-import api from '../api/axios';
+import { authApi } from '../api/authApi';
 
 export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
@@ -19,8 +19,8 @@ export default function Login({ onLoginSuccess }) {
     setErrorMessage('');
 
     try {
-      const response = await api.post('/api/v1/auth/login', { email, password });
-      const { token, user } = response.data;
+      const response = await authApi.login(email, password);
+      const { token, user } = response;
       
       localStorage.setItem('packcheck_token', token);
       localStorage.setItem('packcheck_user', JSON.stringify(user));
@@ -39,21 +39,22 @@ export default function Login({ onLoginSuccess }) {
     }
   };
 
-  const setDemoCredentials = (demoEmail, demoRole) => {
+  const setDemoCredentials = (demoEmail) => {
     setEmail(demoEmail);
     setPassword('PackCheck@123');
     setErrorMessage('');
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4">
+      <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+        
         {/* Header */}
-        <div className="p-8 border-b border-slate-700 text-center bg-slate-800/80">
-          <div className="inline-flex items-center justify-center p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl mb-4">
-            <ShieldCheck className="w-10 h-10 text-indigo-400" />
+        <div className="p-8 border-b border-slate-800 text-center bg-slate-900/80">
+          <div className="inline-flex items-center justify-center p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl mb-4">
+            <ShieldCheck className="w-10 h-10 text-cyan-400" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">PackCheck AI</h1>
+          <h1 className="text-2xl font-black text-white tracking-tight">PackCheck AI</h1>
           <p className="text-xs text-slate-400 mt-1">
             Legal Metrology Preliminary Compliance System (SIH26034)
           </p>
@@ -62,30 +63,30 @@ export default function Login({ onLoginSuccess }) {
         {/* Demo Quick-fill Account Selector */}
         <div className="px-8 pt-6 pb-2">
           <div className="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider flex items-center justify-between">
-            <span>Prototype Demo Accounts</span>
-            <span className="text-[10px] text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">Demo Only</span>
+            <span>Prototype Demo Credentials</span>
+            <span className="text-[10px] text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">Quick Fill</span>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
-              onClick={() => setDemoCredentials('officer@packcheck.ai', 'Officer')}
-              className="px-2.5 py-2 rounded-lg bg-slate-900 border border-slate-700 hover:border-indigo-500/50 text-xs font-medium text-slate-300 hover:text-white transition flex flex-col items-center gap-1 group text-center"
+              onClick={() => setDemoCredentials('officer@packcheck.ai')}
+              className="px-2.5 py-2 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/50 text-xs font-medium text-slate-300 hover:text-white transition flex flex-col items-center gap-1 group text-center"
             >
-              <UserCheck className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition" />
+              <UserCheck className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition" />
               <span>Officer</span>
             </button>
             <button
               type="button"
-              onClick={() => setDemoCredentials('supervisor@packcheck.ai', 'Supervisor')}
-              className="px-2.5 py-2 rounded-lg bg-slate-900 border border-slate-700 hover:border-cyan-500/50 text-xs font-medium text-slate-300 hover:text-white transition flex flex-col items-center gap-1 group text-center"
+              onClick={() => setDemoCredentials('supervisor@packcheck.ai')}
+              className="px-2.5 py-2 rounded-lg bg-slate-950 border border-slate-800 hover:border-indigo-500/50 text-xs font-medium text-slate-300 hover:text-white transition flex flex-col items-center gap-1 group text-center"
             >
-              <ShieldAlert className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition" />
+              <ShieldAlert className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition" />
               <span>Supervisor</span>
             </button>
             <button
               type="button"
-              onClick={() => setDemoCredentials('admin@packcheck.ai', 'Admin')}
-              className="px-2.5 py-2 rounded-lg bg-slate-900 border border-slate-700 hover:border-purple-500/50 text-xs font-medium text-slate-300 hover:text-white transition flex flex-col items-center gap-1 group text-center"
+              onClick={() => setDemoCredentials('admin@packcheck.ai')}
+              className="px-2.5 py-2 rounded-lg bg-slate-950 border border-slate-800 hover:border-purple-500/50 text-xs font-medium text-slate-300 hover:text-white transition flex flex-col items-center gap-1 group text-center"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-purple-400 group-hover:scale-110 transition" />
               <span>Admin</span>
@@ -96,14 +97,16 @@ export default function Login({ onLoginSuccess }) {
         {/* Login Form */}
         <form onSubmit={handleLogin} className="p-8 pt-4 space-y-4">
           {errorMessage && (
-            <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs">
+            <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMessage}</span>
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Email Address</label>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+              Email Address
+            </label>
             <div className="relative">
               <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
               <input
@@ -112,13 +115,15 @@ export default function Login({ onLoginSuccess }) {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="officer@packcheck.ai"
                 required
-                className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 transition outline-none"
+                className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 transition outline-none"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Password</label>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+              Password
+            </label>
             <div className="relative">
               <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
               <input
@@ -127,7 +132,7 @@ export default function Login({ onLoginSuccess }) {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
                 required
-                className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 transition outline-none"
+                className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 transition outline-none"
               />
             </div>
           </div>
@@ -135,7 +140,7 @@ export default function Login({ onLoginSuccess }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium py-2.5 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm cursor-pointer"
+            className="w-full mt-2 bg-cyan-400 hover:bg-cyan-300 disabled:opacity-50 text-slate-950 font-bold py-3 px-4 rounded-xl shadow-lg shadow-cyan-500/20 transition flex items-center justify-center gap-2 text-sm cursor-pointer"
           >
             {loading ? (
               <>
@@ -151,7 +156,7 @@ export default function Login({ onLoginSuccess }) {
           </button>
         </form>
 
-        <div className="bg-slate-900/50 border-t border-slate-700 p-4 text-center text-[11px] text-slate-500">
+        <div className="bg-slate-950 border-t border-slate-800 p-4 text-center text-[11px] text-slate-500 font-medium">
           Role-Based Access Control Enabled • Spring Security + JWT
         </div>
       </div>
