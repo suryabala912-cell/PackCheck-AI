@@ -141,6 +141,18 @@ When `app.demo-users.enabled=true` (default), the system automatically seeds thr
 
 ---
 
+## 📋 Review & History REST APIs
+
+| Method | Endpoint | Authorization | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/scans/analyze` | Officer/Supervisor/Admin | Upload product label image & run preliminary compliance scan |
+| `GET` | `/api/v1/scans` | Officer/Supervisor/Admin | Fetch scan history summary list |
+| `GET` | `/api/v1/scans/{scanReference}` | Officer/Supervisor/Admin | Retrieve complete scan details, OCR extractions & review audit logs |
+| `GET` | `/api/v1/reviews` | Officer/Supervisor/Admin | Retrieve scans requiring manual review queue |
+| `PUT` | `/api/v1/scans/{scanReference}/review` | Officer/Supervisor/Admin | Submit officer manual review decision & record audit log |
+
+---
+
 ## Documentation Links
 - [System Architecture](docs/architecture.md)
 - [Database Schema & ERD](docs/database-design.md)

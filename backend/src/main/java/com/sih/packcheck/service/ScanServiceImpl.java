@@ -7,6 +7,7 @@ import com.sih.packcheck.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -28,6 +30,7 @@ public class ScanServiceImpl implements ScanService {
     private final ProductScanRepository productScanRepository;
     private final ScanExtractedDeclarationRepository declarationRepository;
     private final RuleEvaluationResultRepository ruleEvaluationRepository;
+    private final ManualReviewLogRepository manualReviewLogRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
@@ -39,12 +42,14 @@ public class ScanServiceImpl implements ScanService {
             ProductScanRepository productScanRepository,
             ScanExtractedDeclarationRepository declarationRepository,
             RuleEvaluationResultRepository ruleEvaluationRepository,
+            ManualReviewLogRepository manualReviewLogRepository,
             UserRepository userRepository,
             ObjectMapper objectMapper) {
         this.aiExtractionService = aiExtractionService;
         this.productScanRepository = productScanRepository;
         this.declarationRepository = declarationRepository;
         this.ruleEvaluationRepository = ruleEvaluationRepository;
+        this.manualReviewLogRepository = manualReviewLogRepository;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
     }
@@ -133,13 +138,12 @@ public class ScanServiceImpl implements ScanService {
                 } else if ("PASS".equalsIgnoreCase(evalStatusStr)) {
                     dbStatus = RuleEvaluationResult.Status.PASS;
                 } else {
-                    // UNVERIFIED or REVIEW rules map safely to MANUAL_REVIEW in database
                     dbStatus = RuleEvaluationResult.Status.MANUAL_REVIEW;
                 }
 
                 RuleEvaluationResult rEntity = new RuleEvaluationResult(
                         rDto.getRuleCode(),
-                        rDto.getRuleCode(), // Field key alignment
+                        rDto.getRuleCode(),
                         dbStatus,
                         rDto.getMessage()
                 );
@@ -153,6 +157,108 @@ public class ScanServiceImpl implements ScanService {
 
         // 9. Build and Return ScanResponseDto
         return buildScanResponseDto(savedScan, aiResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ScanSummaryDto> getScanHistory(User currentUser) {
+        logger.info("Fetching scan history for user: {}", currentUser != null ? currentUser.getEmail() : "anonymous");
+        List<ProductScan> scans;
+        if (currentUser != null && currentUser.getRole() == User.Role.ENFORCEMENT_OFFICER) {
+            scans = productScanRepository.findByOfficerId(currentUser.getId());
+            if (scans.isEmpty()) {
+                scans = productScanRepository.findAll(Sort.by(Sort.Direction.DESC, "scanTimestamp"));
+            }
+        } else {
+            scans = productScanRepository.findAll(Sort.by(Sort.Direction.DESC, "scanTimestamp"));
+        }
+
+        return scans.stream()
+                .map(ScanSummaryDto::new)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ScanDetailDto getScanDetails(String scanReferenceNumber) {
+        logger.info("Fetching scan details for reference: {}", scanReferenceNumber);
+        ProductScan scan = productScanRepository.findByScanReferenceNumber(scanReferenceNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Scan not found with reference: " + scanReferenceNumber));
+
+        List<ManualReviewLogDto> reviewLogs = manualReviewLogRepository.findByScanId(scan.getId())
+                .stream()
+                .map(ManualReviewLogDto::new)
+                .toList();
+
+        return new ScanDetailDto(scan, reviewLogs);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ScanSummaryDto> getReviewQueue(String statusFilter) {
+        logger.info("Fetching review queue with status filter: {}", statusFilter);
+        List<ProductScan> scans;
+        if (statusFilter != null && !statusFilter.trim().isEmpty()) {
+            try {
+                ProductScan.ReviewStatus status = ProductScan.ReviewStatus.valueOf(statusFilter.toUpperCase());
+                scans = productScanRepository.findByReviewStatus(status);
+            } catch (IllegalArgumentException e) {
+                scans = productScanRepository.findAll();
+            }
+        } else {
+            scans = productScanRepository.findByReviewStatus(ProductScan.ReviewStatus.PENDING_REVIEW);
+            if (scans.isEmpty()) {
+                scans = productScanRepository.findAll();
+            }
+        }
+
+        return scans.stream()
+                .map(ScanSummaryDto::new)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public ScanDetailDto submitManualReview(String scanReferenceNumber, ReviewRequestDto reviewRequest, User reviewer) {
+        logger.info("Submitting manual review for scan: {} by user: {}", scanReferenceNumber, reviewer.getEmail());
+
+        if (reviewRequest == null || reviewRequest.getNewStatus() == null || reviewRequest.getNewStatus().trim().isEmpty()) {
+            throw new IllegalArgumentException("Review status 'new_status' is required.");
+        }
+        if (reviewRequest.getActionTaken() == null || reviewRequest.getActionTaken().trim().isEmpty()) {
+            throw new IllegalArgumentException("Review action 'action_taken' is required.");
+        }
+
+        ProductScan scan = productScanRepository.findByScanReferenceNumber(scanReferenceNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Scan not found with reference: " + scanReferenceNumber));
+
+        ProductScan.ReviewStatus newStatus;
+        try {
+            newStatus = ProductScan.ReviewStatus.valueOf(reviewRequest.getNewStatus().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid review status. Must be PENDING_REVIEW, UNDER_REVIEW, or OFFICER_VERIFIED.");
+        }
+
+        ProductScan.ReviewStatus previousStatus = scan.getReviewStatus();
+        scan.setReviewStatus(newStatus);
+        ProductScan updatedScan = productScanRepository.save(scan);
+
+        ManualReviewLog reviewLog = new ManualReviewLog(
+                updatedScan,
+                reviewer,
+                reviewRequest.getActionTaken(),
+                previousStatus,
+                newStatus,
+                reviewRequest.getOfficerNotes()
+        );
+        manualReviewLogRepository.save(reviewLog);
+
+        List<ManualReviewLogDto> reviewLogs = manualReviewLogRepository.findByScanId(updatedScan.getId())
+                .stream()
+                .map(ManualReviewLogDto::new)
+                .toList();
+
+        return new ScanDetailDto(updatedScan, reviewLogs);
     }
 
     private String saveImageFile(MultipartFile file) {

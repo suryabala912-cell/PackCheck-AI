@@ -3,6 +3,8 @@ package com.sih.packcheck.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sih.packcheck.dto.LoginRequest;
 import com.sih.packcheck.entity.User;
+import com.sih.packcheck.repository.ManualReviewLogRepository;
+import com.sih.packcheck.repository.ProductScanRepository;
 import com.sih.packcheck.repository.UserRepository;
 import com.sih.packcheck.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +33,12 @@ public class AuthControllerTest {
     private UserRepository userRepository;
 
     @Autowired
+    private ProductScanRepository productScanRepository;
+
+    @Autowired
+    private ManualReviewLogRepository manualReviewLogRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -41,6 +49,8 @@ public class AuthControllerTest {
 
     @BeforeEach
     public void setUp() {
+        manualReviewLogRepository.deleteAll();
+        productScanRepository.deleteAll();
         userRepository.deleteAll();
 
         // Create test officer user

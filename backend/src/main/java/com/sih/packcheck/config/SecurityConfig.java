@@ -83,6 +83,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/scans/analyze").hasAnyRole("ENFORCEMENT_OFFICER", "SUPERVISOR", "ADMIN")
                 .requestMatchers("/api/v1/scans/**").hasAnyRole("ENFORCEMENT_OFFICER", "SUPERVISOR", "ADMIN")
+                .requestMatchers("/api/v1/reviews/**").hasAnyRole("ENFORCEMENT_OFFICER", "SUPERVISOR", "ADMIN")
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )

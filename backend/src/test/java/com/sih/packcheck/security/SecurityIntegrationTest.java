@@ -2,13 +2,14 @@ package com.sih.packcheck.security;
 
 import com.sih.packcheck.config.DemoDataSeeder;
 import com.sih.packcheck.entity.User;
+import com.sih.packcheck.repository.ManualReviewLogRepository;
+import com.sih.packcheck.repository.ProductScanRepository;
 import com.sih.packcheck.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -32,6 +33,12 @@ public class SecurityIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
+    private ProductScanRepository productScanRepository;
+
+    @Autowired
+    private ManualReviewLogRepository manualReviewLogRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -47,6 +54,8 @@ public class SecurityIntegrationTest {
 
     @BeforeEach
     public void setUp() {
+        manualReviewLogRepository.deleteAll();
+        productScanRepository.deleteAll();
         userRepository.deleteAll();
 
         officerUser = new User("Officer Test", "officer@packcheck.ai", passwordEncoder.encode("PackCheck@123"), User.Role.ENFORCEMENT_OFFICER, "Zone-A");
@@ -72,7 +81,6 @@ public class SecurityIntegrationTest {
     public void testValidJwtAllowsAuthenticatedRequest() throws Exception {
         MockMultipartFile emptyFile = new MockMultipartFile("file", "label.jpg", "image/jpeg", new byte[0]);
 
-        // Returns 400 Bad Request (file validation error) instead of 401 Unauthorized because authentication passed!
         mockMvc.perform(multipart("/api/v1/scans/analyze")
                         .file(emptyFile)
                         .header("Authorization", "Bearer " + officerJwtToken))
@@ -82,7 +90,6 @@ public class SecurityIntegrationTest {
 
     @Test
     public void testRoleAuthorizationForbiddenForUnauthorizedRole() throws Exception {
-        // Assume an endpoint restricted to ADMIN only
         mockMvc.perform(get("/api/v1/admin/dashboard")
                         .header("Authorization", "Bearer " + officerJwtToken))
                 .andExpect(status().isForbidden())
@@ -94,7 +101,7 @@ public class SecurityIntegrationTest {
     public void testRoleAuthorizationAccessGrantedForAllowedRole() throws Exception {
         mockMvc.perform(get("/api/v1/admin/dashboard")
                         .header("Authorization", "Bearer " + adminJwtToken))
-                .andExpect(status().isNotFound()); // 404 Not Found proves 403 Forbidden was bypassed and request reached router!
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -102,7 +109,6 @@ public class SecurityIntegrationTest {
         demoDataSeeder.run();
         long initialCount = userRepository.count();
 
-        // Run seeder again to simulate restart
         demoDataSeeder.run();
         long finalCount = userRepository.count();
 
