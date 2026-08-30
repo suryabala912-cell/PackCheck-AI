@@ -13,7 +13,7 @@ PackCheck AI is an **AI-assisted preliminary compliance assessment system** desi
 | **Frontend UI** | React 18 + Vite + Tailwind CSS | `3000` | `http://localhost:3000` |
 | **Backend Domain** | Java 17 + Spring Boot 3 + JPA | `8080` | `http://localhost:8080/api/v1/health` |
 | **AI Vision Service** | Python 3.10 + FastAPI + OpenCV | `8000` | `http://localhost:8000/health` |
-| **Database** | MySQL 8.x | `3306` | `packcheck_db` |
+| **Database** | MySQL 8.x / H2 | `3306` | `packcheck_db` |
 
 ---
 
@@ -34,24 +34,65 @@ PROJECT-SIH/
 
 ---
 
-## 🚀 One-Command Docker Deployment
+## 🌐 Prototype Deployment Preparation
 
-Deploy the complete multi-container stack (Database, AI Vision Service, Spring Backend, and Frontend):
+### 1. Local Development Architecture
+```
+React/Vite Frontend (Port 3000)
+       │
+       ▼
+Spring Boot REST API (Port 8080)
+       ├──► FastAPI AI OCR Microservice (Port 8000)
+       └──► MySQL / H2 Database (Port 3306)
+```
 
+### 2. Environment Variables Summary
+
+#### Frontend (`frontend/.env`)
+| Variable | Description | Local Default | Production Example |
+| :--- | :--- | :--- | :--- |
+| `VITE_API_BASE_URL` | Base URL of Spring Boot REST API | `http://localhost:8080` | `https://api.packcheck.ai` |
+
+#### Backend (`backend/.env`)
+| Variable | Description | Local Default | Production Example |
+| :--- | :--- | :--- | :--- |
+| `PORT` | Spring Boot HTTP Server Port | `8080` | `8080` / `$PORT` |
+| `DB_URL` | JDBC Database Connection URL | `jdbc:mysql://localhost:3306/packcheck_db?...` | `jdbc:mysql://cloud-db:3306/packcheck_db` |
+| `DB_USERNAME` | Database User | `root` | `admin_user` |
+| `DB_PASSWORD` | Database Password | `password` | `<STRONG_SECRET_PASSWORD>` |
+| `AI_SERVICE_URL` | FastAPI Microservice URL | `http://localhost:8000` | `https://ai.packcheck.ai` |
+| `JWT_SECRET` | 256-bit JWT Signing Secret Key | `PackCheckPrototypeSecretKey...` | `<PRODUCTION_256BIT_SECRET>` |
+| `FRONTEND_URL` | CORS Allowed Origins | `http://localhost:3000,http://localhost:5173` | `https://dashboard.packcheck.ai` |
+| `UPLOAD_DIR` | Local Image File Storage Path | `uploads` | `/var/app/uploads` |
+
+#### AI Vision Microservice (`ai-services/.env`)
+| Variable | Description | Local Default | Production Example |
+| :--- | :--- | :--- | :--- |
+| `PORT` | FastAPI Execution Port | `8000` | `$PORT` / `8000` |
+| `ENVIRONMENT` | Runtime Mode | `development` | `production` |
+
+### 3. Database Configuration
+- Supports both MySQL 8.x and H2 in-memory databases.
+- Schema auto-initializes via `database/init_schema.sql` (MySQL) or Hibernate DDL (`ddl-auto: update`).
+- Compatible with low-cost hosted MySQL providers (e.g., PlanetScale, Aiven, Supabase Postgres via dialect, or AWS RDS Free Tier).
+
+### 4. Local Docker Compose Command
+Run the complete stack locally using Docker Compose:
 ```bash
 docker-compose up --build -d
 ```
 
-Access services:
-- **Frontend Dashboard**: http://localhost:3000
-- **Spring Boot REST API**: http://localhost:8080/api/v1/health
-- **AI OCR Microservice**: http://localhost:8000/health
-- **MySQL Database**: `localhost:3306` (Database: `packcheck_db`)
+### 5. Future Cloud Deployment Architecture (Target Specs)
+- **Frontend**: Vercel / Netlify (Static Web Hosting using Vite `npm run build`).
+- **Backend API**: Render Web Service / Railway / AWS Elastic Beanstalk (Java 17 runtime container).
+- **AI OCR Microservice**: Render Web Service / AWS ECS / GCP Cloud Run (Python 3.10 + Tesseract runtime).
+- **Database**: Hosted Managed MySQL Instance.
 
-To stop all services:
-```bash
-docker-compose down
-```
+### 6. Ephemeral File Storage Limitation Note
+> ℹ️ **Notice on File Storage:** In this prototype, scanned label images are stored in local filesystem directory `uploads/` (`UPLOAD_DIR`). Cloud application platforms (e.g., Render, Heroku) use ephemeral filesystems where uploaded files do not persist across restarts. For full production scale, integrate S3-compatible cloud object storage (e.g., AWS S3, Cloudflare R2, or MinIO).
+
+### 7. Statutory Compliance Disclaimer
+> ⚖️ **Legal Notice:** PackCheck AI is an automated decision-support prototype under Legal Metrology Rules, 2011. AI preliminary compliance assessments are advisory; human officer verification and sign-off are required prior to issuing official statutory notices or penalty enforcement orders.
 
 ---
 
@@ -133,12 +174,6 @@ When `app.demo-users.enabled=true` (default), the system automatically seeds thr
   }
   ```
 
-### Configuration & Environment Options
-- **JWT Secret**: Configure via environment variable `JWT_SECRET` (default `PackCheckPrototypeSecretKeyForJwtTokenGeneration2026!SIH26034`).
-- **JWT Expiration**: Configure via `JWT_EXPIRATION_MS` (default `86400000` ms / 24 hours).
-- **Disable Demo Users**: Set `APP_DEMO_USERS_ENABLED=false` or `app.demo-users.enabled=false`.
-- **CORS Allowed Origins**: Set `CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173`.
-
 ---
 
 ## 📋 Review & History REST APIs
@@ -159,8 +194,3 @@ When `app.demo-users.enabled=true` (default), the system automatically seeds thr
 - [API Specification](docs/api-design.md)
 - [Development Guide](docs/development-guide.md)
 - [Synthetic Test Plan](docs/test-plan.md)
-
----
-
-## Legal & Compliance Scope Notice
-PackCheck AI provides preliminary decision-support outputs. Results generated by this system do not constitute legally binding penalty notices or official certifications without human verification and sign-off by an authorized Legal Metrology officer.
